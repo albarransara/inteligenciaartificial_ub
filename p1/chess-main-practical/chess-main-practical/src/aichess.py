@@ -101,8 +101,7 @@ class Aichess():
 
     def isCheckMate(self, mystate):
         checkMatestates = (
-        [[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 3, 2], [2, 4, 6]],
-        [[0, 5, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
+        [[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
         if mystate in checkMatestates:
             return True
         mystate2 = [mystate[1], mystate[0]]
@@ -200,44 +199,92 @@ class Aichess():
             print("Depth: ", len(self.pathToTarget))
             print("Path: ", self.pathToTarget)
 
+    def setify(self, states):
+        setStates = set()
+
+        for state in states:
+            tup = tuple(state)
+            setStates.add(tup)
+
+        return frozenset(setStates)
 
     def BreadthFirstSearch(self, currentState, depth):
         """
         Check mate from currentStateW
         """
-        if self.isVisited(currentState):
-            # Passem al següent estat de la pila d'estats següents
-            if self.stackStates:
-                self.BreadthFirstSearch(self.stackStates.pop(0), depth)
-            # Si no hi ha més estats a visitar acabem el B
-            else:
-                print("There is no possibility of check mate.1")
 
-        else:
-            # Afegim l'estat actual com a visitat
-            self.listVisitedStates.append(currentState)
+        #Creem un diccionari on anirem guardant els estats i els seus estats previs, per tal de reconstruir el camí
+        previous = dict()
+        previous[self.setify(currentState)] = None
 
-            # Si es check mate, imprimim un missatge i acabem la partida
-            if self.isCheckMate(currentState):
-                print("Check mate.")
+        currentState = (0,currentState)
 
-            # Si no es checkmate, afegim els seus estats següents, si no estan visitats, estats a la cua
-            else:
-                # Obtenim la llista de nous estats
-                for state in reversed(self.getListNextStatesW(currentState)):
-                    if state not in self.listVisitedStates:
-                        if state[0][:2] != state[1][:2]:
-                            self.stackStates.append(state)
+        while not self.checkMate:
 
-                # Apliquem la recurrencia del dfs amb el següent estat de la pila
-                # Passem al següent estat de la llista d'estats següents
+            # Comprovem que l'estat actual no hagi estat visitat previament
+            if self.isVisited(currentState):
+                # Si hi ha més estas per visitar a la cua, passem al següent estat d'aquesta
                 if self.stackStates:
-                    self.BreadthFirstSearch(self.stackStates.pop(0), depth)
-                # Si no hi ha més estats a visitar acabem el DFS
+                    currentState = self.stackStates.pop(0)
+                # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                 else:
-                    print("There is no possibility of check mate.2")
+                    print(currentState)
+                    print("There's no possibility of checkmate.1")
+                    break
+            else:
+                self.listVisitedStates.append(currentState)
+                
+                if depth < self.depthMax:
+                    print(currentState)
+                    depth, positions = currentState[0], currentState[1]
+                    # L'afegim a la llista de nodes ja visitats
+                    self.listVisitedStates.append(positions)
 
+                    # Comprovem si correspon a un estat de checkmate
+                    if self.isCheckMate(list(positions)):
+                        # Si ho es, podem dir que hem trobat un checkmate i sortim del bucle
+                        self.checkMate = True
 
+                    # Obtenim la llista de nous estats
+                    for state in reversed(self.getListNextStatesW(list(positions))):
+                        if state not in self.listVisitedStates:
+                            if state[0][:2] != state[1][:2]:
+                                self.stackStates.append((depth+1,tuple(state)))
+                                if state != currentState:
+                                    previous[self.setify(state)] = self.setify(positions)
+
+                    # Apliquem la recurrencia del dfs amb el següent estat de la pila
+                    # Passem al següent estat de la llista d'estats següents
+                    if self.stackStates:
+                        currentState = self.stackStates.pop(0)
+                    # Si no hi ha més estats a visitar acabem el DFS
+                    else:
+                        print("There is no possibility of check mate.2")
+                        break
+                else:
+                    print(currentState)
+                    print("There is no possibility of check mate.3")
+                    break
+
+        if self.checkMate:
+            print('Check mate!')
+            print(currentState)
+            self.pathToTarget = self.recunstructPath(currentState,previous)
+            print("Path: ", self.pathToTarget)
+
+    def recunstructPath(self,currentState,previous):
+
+        pathToTarget = []
+        currentState = self.setify(currentState)
+        print(previous)
+
+        while not  (previous[currentState] == None):
+            pathToTarget.append(list(currentState))
+            currentState = previous[currentState]
+
+        print(previous)
+
+        return pathToTarget
 
         """
         # Comrpovem que el node ja no hagi estat visitat
@@ -331,8 +378,8 @@ if __name__ == "__main__":
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
     aichess.listVisitedStates = []
+    aichess.checkMate = False
     aichess.BreadthFirstSearch(currentState, depth)
-    print(aichess.listVisitedStates[-1])
     print("BFS End")
 
     # example move piece from start to end state
