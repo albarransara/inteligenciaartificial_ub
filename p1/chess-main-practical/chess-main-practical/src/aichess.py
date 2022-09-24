@@ -42,8 +42,10 @@ class Aichess():
         # Inicialitzem totes les variables que necessitarem
         self.listNextStates = []
         self.listVisitedStates = []
+        self.dicVisited = {}
         self.pathToTarget = []
         self.queueStates = []
+        self.stackStates = []
         self.currentStateW = self.chess.boardSim.currentStateW;
         self.depthMax = 8;
         self.checkMate = False
@@ -113,36 +115,37 @@ class Aichess():
         """
         Check mate from currentStateW
         """
-        # your code here
 
-        if self.checkMate:
-            print(currentState)
-            print(self.pathToTarget)
-            print("Check mate.")
-            print("Depth: ", depth)
+        self.pathToTarget = []
+        self.queueStates.append(currentState)
 
-        # Comrpovem que el node ja no hagi estat visitat
-        elif self.isVisited(currentState):
-            # Passem al següent estat de la llista d'estats següents
-            if self.queueStates:
-                self.DepthFirstSearch(self.queueStates.pop(0), depth)
-            # Si no hi ha més estats a visitar acabem el DFS
+        # Mentres que no trobem estat de checkmate anirem iterant pel graf
+        while not self.checkMate:
+
+            # Comprovem que l'estat actual no hagi estat visitat previament
+            if self.isVisited(currentState):
+                # Si ho ha estat, ho esborrem del camí al checkmate
+                if currentState in self.pathToTarget:
+                    self.pathToTarget.remove(currentState)
+                self.queueStates.remove(currentState)
+                # Si hi ha més estas per visitar a la cua, passem al següent estat d'aquesta
+                if self.queueStates:
+                    currentState = self.queueStates[0]
+                # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
+                else:
+                    print(currentState)
+                    print("There's no possibility of checkmate.1")
+                    break
+
+            # Si l'estat actual encara no ha estat visitat
             else:
-                print("There is no possibility of check mate.")
+                # L'afegim a la llista de nodes ja visitats
+                self.listVisitedStates.append(currentState)
 
-        else:
-            # Afegim l'estat actual com a visitat
-            self.listVisitedStates.append(currentState)
-
-            # Si es check mate, imprimim un missatge i acabem la partida
-            if self.isCheckMate(currentState):
-                if depth < 8 :
-                    depth += 1
+                # Comprovem si correspon a un estat de checkmate
+                if self.isCheckMate(currentState):
+                    # Si ho es, podem dir que hem trobat un checkmate i sortim del bucle
                     self.checkMate = True
-                    self.DepthFirstSearch(currentState,depth)
-
-            # Si no es checkmate, afegim els seus estats següents, si no estan visitats, estats a la pila
-            else:
 
                 nextStates = []
 
@@ -150,63 +153,93 @@ class Aichess():
                     if state not in self.listVisitedStates:
                         if state[0][:2] != state[1][:2]:
                             nextStates.append(state)
-                            self.queueStates.insert(0,state)
 
-                if nextStates:
-                    self.pathToTarget.append(currentState)
-                    depth += 1
-                    for state in nextStates:
-                        if self.queueStates:
-                            if depth < 8:
-                                self.queueStates.insert(0, state)
-                                self.DepthFirstSearch(self.queueStates.pop(0), depth)
-                        else:
-                            print(currentState)
-                            print("There is no possibility of check mate.:)")
+                if len(nextStates) == 0:
+                    self.queueStates.remove(currentState)
+                    if currentState in self.pathToTarget:
+                        self.pathToTarget.remove(currentState)
 
-                    self.pathToTarget.remove(currentState)
-                    depth -= 1
+                    # Si encara es pot, continuem recorrent el graf
                     if self.queueStates:
-                        self.DepthFirstSearch(self.queueStates.pop(0), depth)
-                        # Si no hi ha més estats a visitar acabem el DFS
+                        currentState = self.queueStates[0]
+                    # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                     else:
-                        print("There is no possibility of check mate.")
+                        print("There's no possibility of checkmate.3")
+                        break
 
                 else:
-                    # Passem al següent estat de la llista d'estats següents
-                    if self.queueStates:
-                        self.DepthFirstSearch(self.queueStates.pop(0), depth)
-                    # Si no hi ha més estats a visitar acabem el DFS
-                    else:
-                        print("There is no possibility of check mate.")
+                    if len(self.pathToTarget) < self.depthMax:
+                        if currentState not in self.pathToTarget:
+                            self.pathToTarget.append(currentState)
 
-
-                """
-                # Obtenim la llista de nous estats
-                for state in reversed(self.getListNextStatesW(currentState)):
-                    if state not in self.listVisitedStates:
-                        if state[0][:2] != state[1][:2]:
+                        # Si te, afegim els seus fills que siguin valids i no visitats previament
+                        for state in nextStates:
                             self.queueStates.insert(0, state)
 
-                # Apliquem la recurrencia del dfs amb el següent estat de la pila
-                # Passem al següent estat de la llista d'estats següents
-                if self.queueStates:
-                    self.DepthFirstSearch(self.queueStates.pop(0), depth)
-                # Si no hi ha més estats a visitar acabem el DFS
-                else:
-                    print("There is no possibility of check mate.")
-                """
+                        # Si encara es pot, continuem recorrent el graf
+                        if self.queueStates:
+                            currentState = self.queueStates[0]
+
+                        # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
+                        else:
+                            print("There's no possibility of checkmate.4")
+                            break
+                    else:
+                        # Si encara es pot, continuem recorrent el grafç
+                        if self.queueStates:
+
+                            currentState = self.queueStates[0]
+
+                        # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
+                        else:
+                            print("There's no possibility of checkmate.5")
+                            break
+
+        if self.checkMate:
+            print("Check mate!")
+            print("Depth: ", len(self.pathToTarget))
+            print("Path: ", self.pathToTarget)
+
 
     def BreadthFirstSearch(self, currentState, depth):
         """
         Check mate from currentStateW
         """
-        # your code
-        """
-                Check mate from currentStateW
-                """
-        # your code here
+        if self.isVisited(currentState):
+            # Passem al següent estat de la pila d'estats següents
+            if self.stackStates:
+                self.BreadthFirstSearch(self.stackStates.pop(0), depth)
+            # Si no hi ha més estats a visitar acabem el B
+            else:
+                print("There is no possibility of check mate.1")
 
+        else:
+            # Afegim l'estat actual com a visitat
+            self.listVisitedStates.append(currentState)
+
+            # Si es check mate, imprimim un missatge i acabem la partida
+            if self.isCheckMate(currentState):
+                print("Check mate.")
+
+            # Si no es checkmate, afegim els seus estats següents, si no estan visitats, estats a la cua
+            else:
+                # Obtenim la llista de nous estats
+                for state in reversed(self.getListNextStatesW(currentState)):
+                    if state not in self.listVisitedStates:
+                        if state[0][:2] != state[1][:2]:
+                            self.stackStates.append(state)
+
+                # Apliquem la recurrencia del dfs amb el següent estat de la pila
+                # Passem al següent estat de la llista d'estats següents
+                if self.stackStates:
+                    self.BreadthFirstSearch(self.stackStates.pop(0), depth)
+                # Si no hi ha més estats a visitar acabem el DFS
+                else:
+                    print("There is no possibility of check mate.2")
+
+
+
+        """
         # Comrpovem que el node ja no hagi estat visitat
         if self.isVisited(currentState):
             # Passem al següent estat de la llista d'estats següents
@@ -239,7 +272,7 @@ class Aichess():
                 # Si no hi ha més estats a visitar acabem el DFS
                 else:
                     print("There is no possibility of check mate.")
-
+        """
 
 def translate(s):
     """
@@ -289,6 +322,7 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
+
     depth = 0
     aichess.DepthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
@@ -296,7 +330,7 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
-    depth = 0
+    aichess.listVisitedStates = []
     aichess.BreadthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
     print("BFS End")
