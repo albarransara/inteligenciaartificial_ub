@@ -13,6 +13,7 @@ import sys
 
 from itertools import permutations
 from collections import deque
+from queue import PriorityQueue
 
 class Aichess():
     """
@@ -301,13 +302,79 @@ class Aichess():
         """
         # Incialitem la variable on anirem sumant les distancies
         sum = 0
-        for targetState in self.checkMate:
-            sum += abs((currentState[0] - targetState[0]) + (currentState[1] - targetState[1]))
+        #Si el current state es part de les possibles posicions de check mate, retornem 0
+        if  self.isCheckMate(currentState):
+            return 0
+        # Si no calculem la mitjana de les distancies
+        for targetState in self.checkMatestates:
+            for pieceT in targetState:
+                for piece in currentState:
+                    sum += abs((piece[0] - pieceT[0]) + (piece[1] - pieceT[1]))
         # Dividim entre el nombre total de distancies i obtenim la mitja, la retornem
-        return sum/len(self.checkMate)
+        return sum/len(self.checkMatestates)
 
+    # Funcio de búsqueda informada *A
     def searchA(self, currentState, depth):
-        return 0
+
+        #Inicialitzem la cua prioritaria on anirem guardant els estats
+        queue = PriorityQueue()
+        #Inicialtzem la llista on anirem guardant els nodes de la solució
+        self.pathToTarget = []
+        #Abans de començar l'iteració ens assegurem que la llista de visitats està buida
+        self.listVisitedStates = []
+        # Cada estat serà una tupla, on:
+        #   - El primer valor serà el valor de la funció d'evaluació f(n) = h(n)+g(n)
+        #   - El segón el cost d'arribar a l'objectiu des d'aquell estat, en aquest cas, equivaldrà al depth o número de moviments fets per arribar allà
+        #   - El tercer serà la llista amb la posició de les peces blanques al tauler
+        currentState = (self.fun_heuristica(currentState),0,currentState)
+
+        #Mentres no trobem estat de checkmate anirem iterant pel graf
+        while not self.checkMate:
+
+            #Comprove que l'estat actual no hagi estat visitat previament
+            if  self.isVisited(currentState[2]):
+                #Si hi ha més estat per a visitar, passem al següent de la cua amb prioritat
+                if queue:
+                    currentState = queue.get()
+                #Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
+                else:
+                    print("There's no possibility of checkmate.1")
+                    break
+            #Si no ha estat visitat
+            else:
+                #Obtenim el depth i les posicions de les peces blanques
+                depth = currentState[1]
+                data = currentState[2]
+
+                #Afegim l'estat actual a les posicions ja visitades
+                self.listVisitedStates.append(data)
+
+                #Comprovem si correspon a un estat de checkmate
+                if self.isCheckMate(data):
+                    #Si ho és, podem dir que hem trobat un checkmate i sortir del bucle
+                    self.checkMate = True
+
+                else:
+                    # Obtenim la llista de nous estats possibles
+                    for state in reversed(self.getListNextStatesW(data)):
+                        if state not in self.listVisitedStates:
+                            if state[0][:2] != state[1][:2]:
+                                # Afegim a la cua aquells que no hagin estat visitats previament i siguin vàlids
+                                #Primer calculem el valor de la funció d'evaluació
+                                f = self.fun_heuristica(state) + depth + 1
+                                queue.put((f, depth+1, state))
+
+                    # Si encara podem visitar més estats, agafem el primer de la cua de prioritat
+                    if queue:
+                        currentState = queue.get()
+                    # Si no hi ha més estats a visitar acabem la recerca i considerem que no hi ha possibilitat de checkmate
+                    else:
+                        print("There is no possibility of check mate.2")
+                        break
+
+        if self.checkMate:
+            print("Check mate!")
+            print(currentState)
 
 def translate(s):
     """
@@ -337,7 +404,7 @@ if __name__ == "__main__":
     # intiialize board
     TA = np.zeros((8, 8))
     TA[7][0] = 2
-    TA[7][4] = 6
+    TA[7][7] = 6
     TA[0][4] = 12
 
     # initialise board
@@ -357,6 +424,7 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
+    """
     depth = 0
     aichess.DepthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
@@ -371,6 +439,11 @@ if __name__ == "__main__":
     aichess.BreadthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
     print("BFS End")
+    """
+
+    print("*A Search")
+    depth = 0
+    print(aichess.searchA(currentState,depth))
 
     # example move piece from start to end state
     MovesToMake = ['1e', '2e']
