@@ -50,6 +50,7 @@ class Aichess():
         self.currentStateW = self.chess.boardSim.currentStateW;
         self.depthMax = 8;
         self.checkMate = False
+        self.checkMatestates = ([[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
 
     def getCurrentState(self):
 
@@ -101,12 +102,10 @@ class Aichess():
             return False
 
     def isCheckMate(self, mystate):
-        checkMatestates = (
-        [[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
-        if mystate in checkMatestates:
+        if mystate in self.checkMatestates:
             return True
         mystate2 = [mystate[1], mystate[0]]
-        if mystate2 in checkMatestates:
+        if mystate2 in self.checkMatestates:
             return True
 
         return False
@@ -201,16 +200,6 @@ class Aichess():
             print("Path: ", self.pathToTarget)
 
 
-
-    def setify(self, states):
-        setStates = set()
-
-        for state in states:
-            tup = tuple(state)
-            setStates.add(tup)
-
-        return frozenset(setStates)
-
     def BreadthFirstSearch(self, currentState, depth):
         """
         Check mate from currentStateW
@@ -287,15 +276,14 @@ class Aichess():
             self.pathToTarget = self.recunstructPath(currentState,previous)
             print("Depth: ", currentState[0])
             print("Path: ", self.pathToTarget)
-            print(len(self.pathToTarget))
 
+    # Funcio auxiliar amb l'objectiu de reconstruir el path al BFS
     def recunstructPath(self,currentState,previous):
         # Inicialitzem la llista on guardarem el recorregut  fins al checkmate
         pathToTarget = []
         # Obtenim la posicio de les peces en l'estat de checkmate
         data = currentState[1]
         state = (tuple(data[0]),tuple(data[1]))
-
         # Anem afegint estats des del checkmate fins a arribar a l'estat inicial
         while not  (previous[state] == None):
             pathToTarget.insert(0,state)
@@ -303,40 +291,23 @@ class Aichess():
 
         return pathToTarget
 
+    # Funcio heuristica per a *A
+    def fun_heuristica(self,currentState):
         """
-        # Comrpovem que el node ja no hagi estat visitat
-        if self.isVisited(currentState):
-            # Passem al següent estat de la llista d'estats següents
-            if self.queueStates:
-                self.DepthFirstSearch(self.queueStates.pop(0), depth)
-            # Si no hi ha més estats a visitar acabem el DFS
-            else:
-                print("There is no possibility of check mate.")
+        Retorna el cost estimat des de l'estat donat per parámetre fins l'estat objectiu.
 
-        else:
-            # Afegim l'estat actual com a visitat
-            self.listVisitedStates.append(currentState)
+        Considerarem aquest cost la mitjana de les distancies de l'estat actual amb tots els possibles estats de checkmate
 
-            # Si es check mate, imprimim un missatge i acabem la partida
-            if self.isCheckMate(currentState):
-                print("Check mate.")
-
-            # Si no es checkmate, afegim els seus estats següents, si no estan visitats, estats a la cua
-            else:
-                # Obtenim la llista de nous estats
-                for state in reversed(self.getListNextStatesW(currentState)):
-                    if state not in self.listVisitedStates:
-                        if state[0][:2] != state[1][:2]:
-                            self.queueStates.append(state)
-
-                # Apliquem la recurrencia del dfs amb el següent estat de la pila
-                # Passem al següent estat de la llista d'estats següents
-                if self.queueStates:
-                    self.DepthFirstSearch(self.queueStates.pop(0), depth)
-                # Si no hi ha més estats a visitar acabem el DFS
-                else:
-                    print("There is no possibility of check mate.")
         """
+        # Incialitem la variable on anirem sumant les distancies
+        sum = 0
+        for targetState in self.checkMate:
+            sum += abs((currentState[0] - targetState[0]) + (currentState[1] - targetState[1]))
+        # Dividim entre el nombre total de distancies i obtenim la mitja, la retornem
+        return sum/len(self.checkMate)
+
+    def searchA(self, currentState, depth):
+        return 0
 
 def translate(s):
     """
