@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Sep  8 11:22:03 2022
 @author: ignasi
@@ -7,10 +8,11 @@ Created on Thu Sep  8 11:22:03 2022
 
 import chess
 import numpy as np
+
 import sys
 
 from itertools import permutations
-
+from collections import deque
 
 class Aichess():
     """
@@ -45,7 +47,6 @@ class Aichess():
         self.dicVisited = {}
         self.pathToTarget = []
         self.queueStates = []
-        self.stackStates = []
         self.currentStateW = self.chess.boardSim.currentStateW;
         self.depthMax = 8;
         self.checkMate = False
@@ -199,6 +200,8 @@ class Aichess():
             print("Depth: ", len(self.pathToTarget))
             print("Path: ", self.pathToTarget)
 
+
+
     def setify(self, states):
         setStates = set()
 
@@ -213,76 +216,90 @@ class Aichess():
         Check mate from currentStateW
         """
 
-        #Creem un diccionari on anirem guardant els estats i els seus estats previs, per tal de reconstruir el camí
-        previous = dict()
-        previous[self.setify(currentState)] = None
+        #Incialitem la cua on guardarem els possibles nous estats
+        queue = deque()
 
+        #Creem un diccionari on anirem guardant els estats i els seus estats previs, per tal de reconstruir el camí al checkmate
+        previous = dict()
+        previous[(tuple(currentState[0]),tuple(currentState[1]))] = None
+
+        #Guardarem el estats com a tuples, on indicarem el seu nivell dins l'arbre
         currentState = (0,currentState)
 
+        #Abans de començar l'iteració ens assegurem que la llista de visitats està buida
+        self.listVisitedStates = []
+
+        # Mentres no trobem cap estat de check-mate, continuem iterant per l'arbre
         while not self.checkMate:
 
             # Comprovem que l'estat actual no hagi estat visitat previament
-            if self.isVisited(currentState):
+            if self.isVisited(currentState[1]):
                 # Si hi ha més estas per visitar a la cua, passem al següent estat d'aquesta
-                if self.stackStates:
-                    currentState = self.stackStates.pop(0)
+                if queue:
+                    currentState = queue.popleft()
                 # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                 else:
-                    print(currentState)
                     print("There's no possibility of checkmate.1")
                     break
+
+            # Si no ha estat visitat
             else:
-                self.listVisitedStates.append(currentState)
-                
+                # Obtenim el depth i les posicions de les peces blanques(variable data)
+                depth = currentState[0]
+                data = currentState[1]
+
+                 # Afegim l'estat actual a les posicions ja visitades
+                self.listVisitedStates.append(data)
+
+                # Iterem pels diferents nivells de l'arbre, sempre i quan no siguin superiors o iguals al maxim depth
                 if depth < self.depthMax:
-                    print(currentState)
-                    depth, positions = currentState[0], currentState[1]
-                    # L'afegim a la llista de nodes ja visitats
-                    self.listVisitedStates.append(positions)
 
                     # Comprovem si correspon a un estat de checkmate
-                    if self.isCheckMate(list(positions)):
+                    if self.isCheckMate(data):
                         # Si ho es, podem dir que hem trobat un checkmate i sortim del bucle
                         self.checkMate = True
 
-                    # Obtenim la llista de nous estats
-                    for state in reversed(self.getListNextStatesW(list(positions))):
+                    # Obtenim la llista de nous estats possibles
+                    for state in reversed(self.getListNextStatesW(data)):
                         if state not in self.listVisitedStates:
                             if state[0][:2] != state[1][:2]:
-                                self.stackStates.append((depth+1,tuple(state)))
-                                if state != currentState:
-                                    previous[self.setify(state)] = self.setify(positions)
+                                # Afegim a la cua aquells que no hagin estat visitats previament i siguin vàlids
+                                queue.append((depth+1,state))
+                                # Guardem els estats al diccionari amb el seu estat previ
+                                if not (tuple(state[0]),tuple(state[1])) in previous:
+                                    previous[(tuple(state[0]),tuple(state[1]))] = (tuple(data[0]),tuple(data[1]))
 
-                    # Apliquem la recurrencia del dfs amb el següent estat de la pila
-                    # Passem al següent estat de la llista d'estats següents
-                    if self.stackStates:
-                        currentState = self.stackStates.pop(0)
-                    # Si no hi ha més estats a visitar acabem el DFS
+                    # Si encara podem visitar més estats, agafem el primer de la cua
+                    if queue:
+                        currentState = queue.popleft()
+                    # Si no hi ha més estats a visitar acabem el BFS i considerem que no hi ha possibilitat de checkmate
                     else:
                         print("There is no possibility of check mate.2")
                         break
+
+                # Si em superat el depth màxim, considerem que no hi ha possibilitat de checkmate i acabem l'iteració
                 else:
-                    print(currentState)
                     print("There is no possibility of check mate.3")
                     break
 
         if self.checkMate:
             print('Check mate!')
-            print(currentState)
             self.pathToTarget = self.recunstructPath(currentState,previous)
+            print("Depth: ", currentState[0])
             print("Path: ", self.pathToTarget)
+            print(len(self.pathToTarget))
 
     def recunstructPath(self,currentState,previous):
-
+        # Inicialitzem la llista on guardarem el recorregut  fins al checkmate
         pathToTarget = []
-        currentState = self.setify(currentState)
-        print(previous)
+        # Obtenim la posicio de les peces en l'estat de checkmate
+        data = currentState[1]
+        state = (tuple(data[0]),tuple(data[1]))
 
-        while not  (previous[currentState] == None):
-            pathToTarget.append(list(currentState))
-            currentState = previous[currentState]
-
-        print(previous)
+        # Anem afegint estats des del checkmate fins a arribar a l'estat inicial
+        while not  (previous[state] == None):
+            pathToTarget.insert(0,state)
+            state = previous[state]
 
         return pathToTarget
 
@@ -369,17 +386,19 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
-
     depth = 0
     aichess.DepthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
     print("DFS End")
 
+    # Per tal de trobar check mate amb BFS, tornem a posar valor False a la seva variable
+    aichess.checkMate = False
+
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
-    aichess.listVisitedStates = []
-    aichess.checkMate = False
+    depth = 0
     aichess.BreadthFirstSearch(currentState, depth)
+    print(aichess.listVisitedStates[-1])
     print("BFS End")
 
     # example move piece from start to end state
