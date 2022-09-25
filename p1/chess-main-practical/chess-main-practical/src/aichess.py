@@ -47,7 +47,6 @@ class Aichess():
         self.listVisitedStates = []
         self.dicVisited = {}
         self.pathToTarget = []
-        self.queueStates = []
         self.currentStateW = self.chess.boardSim.currentStateW;
         self.depthMax = 8;
         self.checkMate = False
@@ -115,9 +114,18 @@ class Aichess():
         """
         Check mate from currentStateW
         """
-
+        # Inicialitzem amb el camí des de l'estat incial al checkmate
         self.pathToTarget = []
-        self.queueStates.append(currentState)
+
+        #Inicialitzem la pila on anirem guardant els estats a visitar
+        pile = []
+
+        #Afegim l'estat inicial a la pila
+        pile.append(currentState)
+
+        # Abans de començar l'iteració ens assegurem que la llista de visitats està buida
+        self.listVisitedStates = []
+
 
         # Mentres que no trobem estat de checkmate anirem iterant pel graf
         while not self.checkMate:
@@ -127,10 +135,10 @@ class Aichess():
                 # Si ho ha estat, ho esborrem del camí al checkmate
                 if currentState in self.pathToTarget:
                     self.pathToTarget.remove(currentState)
-                self.queueStates.remove(currentState)
+                pile.remove(currentState)
                 # Si hi ha més estas per visitar a la cua, passem al següent estat d'aquesta
-                if self.queueStates:
-                    currentState = self.queueStates[0]
+                if pile:
+                    currentState = pile[0]
                 # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                 else:
                     print(currentState)
@@ -155,13 +163,13 @@ class Aichess():
                             nextStates.append(state)
 
                 if len(nextStates) == 0:
-                    self.queueStates.remove(currentState)
+                    pile.remove(currentState)
                     if currentState in self.pathToTarget:
                         self.pathToTarget.remove(currentState)
 
                     # Si encara es pot, continuem recorrent el graf
-                    if self.queueStates:
-                        currentState = self.queueStates[0]
+                    if pile:
+                        currentState = pile[0]
                     # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                     else:
                         print("There's no possibility of checkmate.3")
@@ -174,11 +182,11 @@ class Aichess():
 
                         # Si te, afegim els seus fills que siguin valids i no visitats previament
                         for state in nextStates:
-                            self.queueStates.insert(0, state)
+                            pile.insert(0, state)
 
                         # Si encara es pot, continuem recorrent el graf
-                        if self.queueStates:
-                            currentState = self.queueStates[0]
+                        if pile:
+                            currentState = pile[0]
 
                         # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                         else:
@@ -186,9 +194,9 @@ class Aichess():
                             break
                     else:
                         # Si encara es pot, continuem recorrent el grafç
-                        if self.queueStates:
+                        if pile:
 
-                            currentState = self.queueStates[0]
+                            currentState = pile[0]
 
                         # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
                         else:
@@ -274,20 +282,23 @@ class Aichess():
 
         if self.checkMate:
             print('Check mate!')
-            self.pathToTarget = self.recunstructPath(currentState,previous)
-            print("Depth: ", currentState[0])
+            self.pathToTarget = self.recunstructPath(currentState[1],previous)
+            self.pathToTarget.append(currentState[1])
+            print("Depth: ", len(self.pathToTarget))
             print("Path: ", self.pathToTarget)
 
     # Funcio auxiliar amb l'objectiu de reconstruir el path al BFS
     def recunstructPath(self,currentState,previous):
         # Inicialitzem la llista on guardarem el recorregut  fins al checkmate
         pathToTarget = []
+
         # Obtenim la posicio de les peces en l'estat de checkmate
-        data = currentState[1]
-        state = (tuple(data[0]),tuple(data[1]))
+        data = currentState
+        state = (tuple(data[0]), tuple(data[1]))
+
         # Anem afegint estats des del checkmate fins a arribar a l'estat inicial
-        while not  (previous[state] == None):
-            pathToTarget.insert(0,state)
+        while not (previous[state] == None):
+            pathToTarget.insert(0, state)
             state = previous[state]
 
         return pathToTarget
@@ -318,15 +329,22 @@ class Aichess():
 
         #Inicialitzem la cua prioritaria on anirem guardant els estats
         queue = PriorityQueue()
-        #Inicialtzem la llista on anirem guardant els nodes de la solució
-        self.pathToTarget = []
+
         #Abans de començar l'iteració ens assegurem que la llista de visitats està buida
         self.listVisitedStates = []
+
         # Cada estat serà una tupla, on:
         #   - El primer valor serà el valor de la funció d'evaluació f(n) = h(n)+g(n)
         #   - El segón el cost d'arribar a l'objectiu des d'aquell estat, en aquest cas, equivaldrà al depth o número de moviments fets per arribar allà
         #   - El tercer serà la llista amb la posició de les peces blanques al tauler
         currentState = (self.fun_heuristica(currentState),0,currentState)
+
+        # Creem un diccionari on anrirem guardant els estats i els seus estats previs, per tal de reconstruir el camí al checkmate
+        previous = dict()
+        previous[(tuple(currentState[2][0]), tuple(currentState[2][1]))] = None
+        # Creem un diccionari on anirem guardant els estats amb el cost més baix per a arribar a aquests, l'anirem actualizant a mesura que trobem camins més curts
+        costs = dict()
+        costs[(tuple(currentState[2][0]), tuple(currentState[2][1]))] = currentState[0]
 
         #Mentres no trobem estat de checkmate anirem iterant pel graf
         while not self.checkMate:
@@ -343,6 +361,7 @@ class Aichess():
             #Si no ha estat visitat
             else:
                 #Obtenim el depth i les posicions de les peces blanques
+                cost = currentState[0]
                 depth = currentState[1]
                 data = currentState[2]
 
@@ -354,6 +373,7 @@ class Aichess():
                     #Si ho és, podem dir que hem trobat un checkmate i sortir del bucle
                     self.checkMate = True
 
+
                 else:
                     # Obtenim la llista de nous estats possibles
                     for state in reversed(self.getListNextStatesW(data)):
@@ -363,18 +383,36 @@ class Aichess():
                                 #Primer calculem el valor de la funció d'evaluació
                                 f = self.fun_heuristica(state) + depth + 1
                                 queue.put((f, depth+1, state))
+                                # Guradem el node amb el seu cost
+                                costs[(tuple(state[0]), tuple(state[1]))] = f
+                                # Guardem els estats al diccionari amb el seu estat previ
+                                if not (tuple(state[0]), tuple(state[1])) in previous:
+                                    previous[(tuple(state[0]), tuple(state[1]))] = (tuple(data[0]), tuple(data[1]))
+                        # Si el node ja ha estat visitat
+                        else:
+                            # Calculem el valor de la funció d'evaluació actual
+                            f = self.fun_heuristica(state) + depth + 1
+                            # Si aquesta es menor que el cost de l'anterior que el vam visitar
+                            if f < costs[(tuple(state[0]), tuple(state[1]))] :
+                                # Actualitzem el seu cost
+                                costs[(tuple(state[0]), tuple(state[1]))] = f
+                                # Actualitzem també el seu node previ
+                                previous[(tuple(state[0]), tuple(state[1]))] = (tuple(data[0]), tuple(data[1]))
 
                     # Si encara podem visitar més estats, agafem el primer de la cua de prioritat
                     if queue:
                         currentState = queue.get()
+
                     # Si no hi ha més estats a visitar acabem la recerca i considerem que no hi ha possibilitat de checkmate
                     else:
                         print("There is no possibility of check mate.2")
                         break
 
         if self.checkMate:
-            print("Check mate!")
-            print(currentState)
+            print('Check mate!')
+            self.pathToTarget = self.recunstructPath(currentState[2], previous)
+            print("Depth: ", len(self.pathToTarget))
+            print("Path: ", self.pathToTarget)
 
 def translate(s):
     """
@@ -404,7 +442,7 @@ if __name__ == "__main__":
     # intiialize board
     TA = np.zeros((8, 8))
     TA[7][0] = 2
-    TA[7][7] = 6
+    TA[7][4] = 6
     TA[0][4] = 12
 
     # initialise board
@@ -424,7 +462,7 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
-    """
+    print("DFS Search")
     depth = 0
     aichess.DepthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
@@ -435,15 +473,20 @@ if __name__ == "__main__":
 
     # starting from current state find the end state (check mate) - recursive function
     # find the shortest path, initial depth 0
+    print("BFS Search")
     depth = 0
     aichess.BreadthFirstSearch(currentState, depth)
     print(aichess.listVisitedStates[-1])
     print("BFS End")
-    """
+
+    aichess.checkMate = False
 
     print("*A Search")
     depth = 0
     print(aichess.searchA(currentState,depth))
+    print(aichess.listVisitedStates[-1])
+    print("*A End")
+
 
     # example move piece from start to end state
     MovesToMake = ['1e', '2e']
