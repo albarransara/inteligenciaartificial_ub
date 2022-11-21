@@ -128,7 +128,7 @@ class Board():
                         self.currentStateW.append([i, j, int(initState[i][j])])
 
                     # target state (Blacks)
-                    if initState[i][j] > 6 and initState[i][j] > 7:
+                    if initState[i][j] > 6 and initState[i][j] < 13:
                         self.currentStateB.append([i, j, int(initState[i][j])])
 
     def isSameState(self, a, b):
@@ -191,12 +191,7 @@ class Board():
                         if aa[1] > -1 and aa[1] < 8:
                             if listPotentialNextStates[k] not in listOtherPieces and listPotentialNextStates[
                                 k]:
-                                # Comrpovem que no hi hagi cap peça a la posició
-                                if self.board[aa[0]][aa[1]] == None:
-                                    self.listSuccessorStates.append([aa[0], aa[1], aa[2]])
-                                # Comprovem si a la posició hi ha una peça enemiga, llavors si podrá anar
-                                elif self.board[aa[0]][aa[1]][2] < 7:
-                                    self.listSuccessorStates.append([aa[0], aa[1], aa[2]])
+                                self.listSuccessorStates.append([aa[0], aa[1], aa[2]])
             # BLACK ROOK
             # elif (str(self.board[mypiece[0]][mypiece[1]]) == 'R'):
             elif (mypiece[2] == 8):
@@ -209,44 +204,44 @@ class Board():
 
                 while (ix > 0):
                     ix = ix - 1
-                    if self.board[ix][iy] != None and type(self.board[ix][iy]) != piece.King:
+                    if self.board[ix][iy] != None:
                         listPotentialNextStates.append([ix, iy, 8])
                         break
 
-                    elif self.board[ix][iy] == None or type(self.board[ix][iy]) == piece.King:
+                    elif self.board[ix][iy] == None:
                         listPotentialNextStates.append([ix, iy, 8])
 
                 ix = mypiece[0]
                 iy = mypiece[1]
                 while (ix < 7):
                     ix = ix + 1
-                    if self.board[ix][iy] != None and type(self.board[ix][iy]) != piece.King:
+                    if self.board[ix][iy] != None:
                         listPotentialNextStates.append([ix, iy, 8])
                         break
 
-                    elif self.board[ix][iy] == None or type(self.board[ix][iy]) == piece.King:
+                    elif self.board[ix][iy] == None:
                         listPotentialNextStates.append([ix, iy, 8])
 
                 ix = mypiece[0]
                 iy = mypiece[1]
                 while (iy > 0):
                     iy = iy - 1
-                    if self.board[ix][iy] != None and type(self.board[ix][iy]) != piece.King:
+                    if self.board[ix][iy] != None:
                         listPotentialNextStates.append([ix, iy, 8])
                         break
 
-                    elif self.board[ix][iy] == None or type(self.board[ix][iy]) == piece.King:
+                    elif self.board[ix][iy] == None:
                         listPotentialNextStates.append([ix, iy, 8])
 
                 ix = mypiece[0]
                 iy = mypiece[1]
                 while (iy < 7):
                     iy = iy + 1
-                    if self.board[ix][iy] != None and type(self.board[ix][iy]) != piece.King:
+                    if self.board[ix][iy] != None:
                         listPotentialNextStates.append([ix, iy, 8])
                         break
 
-                    elif self.board[ix][iy] == None or type(self.board[ix][iy]) == piece.King:
+                    elif self.board[ix][iy] == None:
                         listPotentialNextStates.append([ix, iy, 8])
 
                 # check positions are not occupied
@@ -318,11 +313,6 @@ class Board():
                         if aa[1] > -1 and aa[1] < 8:
                             if listPotentialNextStates[k] not in listOtherPieces and listPotentialNextStates[
                                 k] not in self.currentStateB:
-                                # Comrpovem que no hi hagi cap peça a la posició
-                                if self.board[aa[0]][aa[1]] == None:
-                                    self.listSuccessorStates.append([aa[0], aa[1], aa[2]])
-                                # Comprovem si a la posició hi ha una peça enemiga, llavors si podrá anar
-                                elif self.board[aa[0]][aa[1]] > 6:
                                     self.listSuccessorStates.append([aa[0], aa[1], aa[2]])
 
             elif (str(self.board[mypiece[0]][mypiece[1]]) == 'P'):
