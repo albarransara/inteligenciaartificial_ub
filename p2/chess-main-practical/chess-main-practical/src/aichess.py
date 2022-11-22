@@ -1,38 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 Created on Thu Sep  8 11:22:03 2022
+
 @author: ignasi
 """
+import copy
 
 import chess
 import numpy as np
-
 import sys
+import queue
+from typing import List
+
+import board
+
+
+RawStateType = List[List[List[int]]]
 
 from itertools import permutations
-from collections import deque
-from queue import PriorityQueue
+
 
 class Aichess():
     """
     A class to represent the game of chess.
+
     ...
+
     Attributes:
     -----------
     chess : Chess
         represents the chess game
+
     Methods:
     --------
     startGame(pos:stup) -> None
         Promotes a pawn that has reached the other side to another, or the same, piece
-    """
 
-    """
-    Funció per inicialitzar un objecte de la classe aichess
-        TA = matriu representant un tauler dona't
-        myinit = bool que indica si li donem un tauler ja amb fitxes o crea un per defecte
     """
 
     def __init__(self, TA, myinit=True):
@@ -42,14 +46,14 @@ class Aichess():
         else:
             self.chess = chess.Chess([], False)
 
-        # Inicialitzem totes les variables que necessitarem
         self.listNextStates = []
         self.listVisitedStates = []
         self.pathToTarget = []
         self.currentStateW = self.chess.boardSim.currentStateW;
-        self.depthMax = 7
+        self.currentStateB = self.chess.boardSim.currentStateB;
+        self.depthMax = 8;
         self.checkMate = False
-        self.checkMatestates = ([[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
+        self.turn = True # If true White's turn, else Black's turn
 
     def getCurrentState(self):
 
@@ -57,120 +61,25 @@ class Aichess():
 
     def getListNextStatesW(self, myState):
 
-        self.chess.boardSim.getListNextStatesW(myState)
-        self.listNextStates = self.chess.boardSim.listNextStates.copy()
+        #self.chess.boardSim.getListNextStatesW(myState.currentStateW)
+        #self.listNextStates = self.chess.boardSim.listNextStates.copy()
+
+        #return self.listNextStates
+        myState.getListNextStatesW(myState.currentStateW)
+        self.listNextStates = myState.listNextStates.copy()
 
         return self.listNextStates
 
     def getListNextStatesB(self, myState):
+        #self.chess.boardSim.getListNextStatesB(myState.currentStateB)
+        #self.listNextStates = self.chess.boardSim.listNextStates.copy()
 
-        self.chess.boardSim.getListNextStatesB(myState)
-        self.listNextStates = self.chess.boardSim.listNextStates.copy()
+        #return self.listNextStates
+        myState.getListNextStatesB(myState.currentStateB)
+        self.listNextStates = myState.listNextStates.copy()
 
         return self.listNextStates
 
-    #ALGORISME MINIMAX
-    def minimax(self, currentStateW):
-        v = self.maxValue(currentStateW)
-        # Return best action with value v.
-        return v[0] # un cop ens quedem amb quin moviment triar, haurem de fer currentState = v[0]
-
-    # OBTENIR EL FILL MÉS GRAN
-    def maxValue(self, currentStateW):
-        # si no té fills retornem el valor del node actual
-        if self.checkIfLeafW(currentStateW):
-            return self.utility(currentStateW)
-        # inicialitzem value amb -infinit
-        v = (currentStateW, float('-inf'))
-        # recorrem tots els fills buscant el de valor màxim
-        for state in self.getListNextStatesW(currentStateW):
-            #si és més gran que el màxim que teniem, actualitzem
-            if self.minValue(state) > v[1]:
-                #guardem en una tupla el taulell que tenim(per després saber per on anar) i el valor
-                v = (state, self.minValue(state))
-        return v
-
-    # OBTENIR EL FILL MÉS PETIT
-    def minValue(self, currentStateB):
-        # si no té fills retornem el valor del node actual
-        if self.checkIfLeafB(currentStateB):
-            return self.utility(currentStateB)
-        # inicialitzem value amb infinit
-        v = (currentStateB, float('inf'))
-        # recorrem tots els fills buscant el de valor mínim
-        for state in self.getListNextStatesB(currentStateB):
-            # si és més petit que el mínim que teniem, actualitzem
-            if self.maxValue(state) < v[1]:
-                # guardem en una tupla el taulell que tenim(per després saber per on anar) i el valor
-                v = (state, self.maxValue(state))
-        return v
-
-    # ALGORISME ALFA-BETA
-    def AlfaBetaPoda(self, currentStateW):
-        v = self.maxPoda(currentStateW, float('-inf'), float('inf'))
-        # Return best action with value v.
-        return v[0] # un cop ens quedem amb quin moviment triar, haurem de fer currentState = v[0]
-
-    # OBTENIR EL FILL MÉS GRAN
-    def maxPoda(self, currentStateW, a, b):
-        # si no té fills retornem el valor del node actual
-        if self.checkIfLeafW(currentStateW):
-            return self.utility(currentStateW)
-        # inicialitzem value amb -infinit
-        v = (currentStateW, float('-inf'))
-        # recorrem tots els fills buscant el de valor màxim
-        for state in self.getListNextStatesW(currentStateW):
-            # si és més gran que el màxim que teniem, actualitzem
-            if self.minPoda(state, a, b) > v[1]:
-                v = (state, self.minPoda(state, a, b))
-            # si el valor que trobem és més gran o igual que Beta podem
-            if v >= b:
-                return v
-            # Actualitzem Alfa
-            a = max(a, v)
-        return v
-
-    def minPoda(self, currentStateB, a, b):
-        # si no té fills retornem el valor del node actual
-        if self.checkIfLeafB(currentStateB):
-            return self.utility(currentStateB)
-        # inicialitzem value amb infinit
-        v = (currentStateB, float('inf'))
-        # recorrem tots els fills buscant el de valor mínim
-        for state in self.getListNextStatesW(currentStateB):
-            # si és més petit que el mínim que teniem, actualitzem
-            if self.minPoda(state, a, b) < v[1]:
-                v = (state, self.maxPoda(state, a, b))
-            # si el valor que trobem és més petit o igual que Alfa podem
-            if v <= a:
-                return v
-            # Actualitzem Beta
-            b = min(b, v)
-        return v
-
-    #Mètode per veure si és un node blanc fulla o no
-    def checkIfLeafW(self, currentStateW):
-        #Si no té fills retornem True, si en té retornem False
-        if not self.chess.boardSim.getListNextStatesW(currentStateW):
-            return True
-        else:
-            return False
-
-    # Mètode per veure si és un node negre fulla o no
-    def checkIfLeafB(self, currentStateB):
-        # Si no té fills retornem True, si en té retornem False
-        if not self.chess.boardSim.getListNextStatesB(currentStateB):
-            return True
-        else:
-            return False
-
-    #Mètode per assignar valors als diferents estats...
-    #amenaçar torre/rei +1, matar torre sense perdre fitxa a la prox +50, matar rei + 10000 i en negatiu a l'inrevés?
-    def utility(self, currentStateW):  # Funció per a assignar valors
-        return 0
-
-
-    # Funció per comprovar si dos llistes d'estats son iguals
     def isSameState(self, a, b):
 
         isSameState1 = True
@@ -190,7 +99,6 @@ class Aichess():
         isSameState = isSameState1 and isSameState2
         return isSameState
 
-    # Funió per comprovar si un estat ja estat visitsat
     def isVisited(self, mystate):
 
         if (len(self.listVisitedStates) > 0):
@@ -208,339 +116,607 @@ class Aichess():
         else:
             return False
 
-    def isCheckMate(self, mystate):
-        if mystate in self.checkMatestates:
-            return True
-        mystate2 = [mystate[1], mystate[0]]
-        if mystate2 in self.checkMatestates:
-            return True
+    def isCheckMate(self, mystate, turn):
 
-        return False
+        # Black's turn
+        if  not turn:
+            # We get our possible next moves
+            myMoves = self.getListNextStatesW(mystate);
 
-    """
-    Funcio auxiliar per a reconstruir les solucions, els camins al check mate
+            # We get our king's possible moves
+            myKing = []
+            for move in myMoves:
+                for position in move:
+                    if position[2] == 6 and [position[0],position[1]] not in myKing:
+                        myKing.append(position[:2])
 
-    Parametres d'entrada:
-        . currentState: estat del check-mate
-        . previous: diccionari on cada key correspon a un node i cada value al seu node pare
-    Return:
-        . pathToTarget: llista amb la seqüència de nodes recorreguts des de´l'estat inicial fins l'estat de check-mate
-    """
-    def recunstructPath(self, currentState, previous):
-        # Inicialitzem la llista on guardarem el recorregut  fins al checkmate
-        pathToTarget = []
+            # We check the enemies possible next moves, if any of them match with our king's possible moves
+            # We will delate it from them, since it won't be no longer a possibility
+            enemyMoves = self.getListNextStatesB(mystate);
+            for move in enemyMoves:
+                for position in move:
+                    if [position[0], position[1]] in myKing:
+                        myKing.remove([position[0],position[1]])
 
-        # Obtenim la posicio de les peces en l'estat de checkmate
-        state = (tuple(currentState[0]), tuple(currentState[1]))
+            # If our king doesn't have any possible move, then, we are in a checkmate situation
+            if len(myKing) == 0:
+                # We need to consider if the situation is possible to be avoided by moving another of our pieces
+                # First we check if we have our rook on the board
+                if len(myMoves[0]) > 1:
+                    # We get its possible moves
+                    myRook = []
+                    for move in myMoves:
+                        for position in move:
+                            if position[2] == 2 and [position[0], position[1]] not in myRook:
+                                myRook.append(position[:2])
+                    # We check if any possible move of our rook matches one of the enemies pieces position or
+                    # can block the enemies tower
 
-        # Anem afegint estats des del checkmate fins a arribar a l'estat inicial
-        while not (previous[state] == None):
-            pathToTarget.insert(0, state)
-            state = previous[state]
-        pathToTarget.insert(0,state)
-        return pathToTarget
+                    # First we get the position on the board where our rook will be blocking the other one properly
+                    # This has to be the position next to our king, on the side where there's the enemies rook threat
 
-    """
-    Funció per a recorre l'arbre segons l'algoritme DFS
-    
-    Parametres d'entrada:
-        . currentState =  node inicial
-        . depth=  profunditat inicial
-    """
-    def DepthFirstSearch(self, currentState, depth):
-        """
-        Check mate from currentStateW
-        """
+                    #We get the position of our king and the enemies rook
+                    myKing = []
+                    eRook = []
+                    pos = []
+                    for piece in mystate.currentStateW:
+                        if piece[2] == 6:
+                            myKing = [piece[0],piece[1],piece[2]]
+                    for piece in mystate.currentStateB:
+                        if piece[2] == 8:
+                            eRook = [piece[0],piece[1],piece[2]]
 
-        #Inicialitzem  com a buida la llista  de nodes visitats
-        self.listVisitedStates = []
-
-        # Creem un diccionari on anirem guardant els estats i els seus estats previs, per tal de reconstruir el camí al checkmate
-        previous = dict()
-        previous[(tuple(currentState[0]), tuple(currentState[1]))] = None
-
-        # Creem un diccionari on anirem guardant els estats amb el depth més baix per a arribar a aquests, l'anirem actualizant a mesura que trobem camins més curts
-        costs = dict()
-        costs[(tuple(currentState[0]), tuple(currentState[1]))] = depth
-
-        """
-        Funcio auxiliar a partir de la qual iterarem recursivament per l'arbre
-        
-        Parametres entrada:
-            . currentState =  un node donat de l'arbre
-            . depth = profunditat del node donat
-        
-        Return:
-            . True si es dona situació de checkmate
-            . False si no el node rebut no es checkmate
-        """
-        def dfs_aux(currentState,depth):
-
-            # Afegim el node a la llista de visitats
-            self.listVisitedStates.append(currentState)
-            # Guradem el node amb el seu depth actual
-            costs[(tuple(currentState[0]), tuple(currentState[1]))] = depth
-
-            # Comprovem si correspon a un estat de checkmate
-            if self.isCheckMate(currentState):
-                # Si ho es, podem dir que hem trobat un checkmate i sortim de la recurrencia
-                # Guardem la solució trobada en la variable pathToTarget
-                self.pathToTarget = self.recunstructPath(currentState, previous)
-                self.checkMate = True
-                return True
-
-            # Si no ens hem passat del depth màxim
-            if depth < self.depthMax:
-                # Obtenim la llista de nous estats possibles des del nostre estat actual
-                for state in reversed(self.getListNextStatesW(currentState)):
-                    # Si l'estat ha sigut visitat previament pero amb un depth superior, l'esborrarem de la llista de visitats,
-                    # ja que volem considerar l'estat amb depth menor
-                    if state in self.listVisitedStates:
-                        if costs[(tuple(state[0]),tuple(state[1]))] > depth + 1:
-                            self.listVisitedStates.remove(state)
-                    # Per cada possible següent estat que no hagi estat visitat anteriorment
-                    if state not in self.listVisitedStates:
-                        # Si les dos peces no estan a la mateixa posició (hem trobat problemes amb això, per aquest motiu em ficat aquesta condició)
-                        if state[0][:2] != state[1][:2]:
-                            # Guardem els estats al diccionari amb el seu estat previ
-                            previous[(tuple(state[0]), tuple(state[1]))] = (tuple(currentState[0]), tuple(currentState[1]))
-                            # Cridem recursivament a la funció amb els fills del node actual
-                            if dfs_aux(state,depth+1):
-                                # Si un dels fills es estat de check mate, aturarem la recursió
-                                return True
-            return False
-
-        #Cridem a la funció auxiliar, passant-li el node i depth inicials
-        dfs_aux(currentState,depth)
-
-        # Mostrem per pantalla els resultats obtinguts
-        if self.checkMate:
-            print('Check mate!')
-            print("Depth: ", len(self.pathToTarget))
-            print("Path: ", self.pathToTarget)
-
-    """
-        Funció per a recorre l'arbre segons l'algoritme BFS
-
-        Parametres d'entrada:
-            . currentState =  node inicial
-            . depth=  profunditat inicial
-    """
-    def BreadthFirstSearch(self, currentState, depth):
-        """
-        Check mate from currentStateW
-        """
-
-        #Incialitem la cua on guardarem els possibles nous estats
-        queue = deque()
-
-        #Creem un diccionari on anirem guardant els estats i els seus estats previs, per tal de reconstruir el camí al checkmate
-        previous = dict()
-        previous[(tuple(currentState[0]),tuple(currentState[1]))] = None
-
-        #Guardarem el estats com a tuples, on indicarem el seu nivell dins l'arbre
-        currentState = (0,currentState)
-
-        #Abans de començar l'iteració ens assegurem que la llista de visitats està buida
-        self.listVisitedStates = []
-
-        # Mentres no trobem cap estat de check-mate, continuem iterant per l'arbre
-        while not self.checkMate:
-
-            # Comprovem que l'estat actual no hagi estat visitat previament
-            if self.isVisited(currentState[1]):
-                # Si hi ha més estas per visitar a la cua, passem al següent estat d'aquesta
-                if queue:
-                    currentState = queue.popleft()
-                # Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
-                else:
-                    print("There's no possibility of checkmate.1")
-                    break
-
-            # Si no ha estat visitat
-            else:
-                # Obtenim el depth i les posicions de les peces blanques(variable data)
-                depth = currentState[0]
-                data = currentState[1]
-
-                 # Afegim l'estat actual a les posicions ja visitades
-                self.listVisitedStates.append(data)
-
-                # Iterem pels diferents nivells de l'arbre, sempre i quan no siguin superiors o iguals al maxim depth
-                if depth <= self.depthMax:
-
-                    # Comprovem si correspon a un estat de checkmate
-                    if self.isCheckMate(data):
-                        # Si ho es, podem dir que hem trobat un checkmate i sortim del bucle
-                        # Guardem la solució trobada en la variable pathToTarget
-                        self.pathToTarget = self.recunstructPath(data, previous)
-                        self.checkMate = True
-
-                    # Obtenim la llista de nous estats possibles
-                    for state in reversed(self.getListNextStatesW(data)):
-                        # Per cada possible següent estat que no hagi estat visitat anteriorment
-                        if state not in self.listVisitedStates:
-                            # Si les dos peces no estan a la mateixa posició (hem trobat problemes amb això, per aquest motiu em ficat aquesta condició)
-                            if state[0][:2] != state[1][:2]:
-                                # Afegim a la cua aquells que no hagin estat visitats previament i siguin vàlids
-                                queue.append((depth+1,state))
-                                # Guardem els estats al diccionari amb el seu estat previ
-                                if not (tuple(state[0]),tuple(state[1])) in previous:
-                                    previous[(tuple(state[0]),tuple(state[1]))] = (tuple(data[0]),tuple(data[1]))
-
-                    # Si encara podem visitar més estats, agafem el primer de la cua
-                    if queue:
-                        currentState = queue.popleft()
-                    # Si no hi ha més estats a visitar acabem el BFS i considerem que no hi ha possibilitat de checkmate
-                    else:
-                        print("There is no possibility of check mate.2")
-                        break
-
-                # Si em superat el depth màxim, considerem que no hi ha possibilitat de checkmate i acabem l'iteració
-                else:
-                    print("There is no possibility of check mate.3")
-                    break
-
-        # Mostrem per pantalla els resultats obtinguts
-        if self.checkMate:
-            print('Check mate!')
-            print("Depth: ", len(self.pathToTarget))
-            print("Path: ", self.pathToTarget)
-
-    """
-    Funcio heuristica per a *A
-    
-    Parametres d'entrada:
-        . currentState: un node concret de l'arbre
-    Return:
-        . min: distancia mínima entre el node i un estat de check mate
-    """
-    def fun_heuristica(self,currentState):
-        """
-        Retorna el cost estimat des de l'estat donat per parámetre fins l'estat objectiu.
-
-        Considerarem aquest cost el mínim de les distancies Manhatan de l'estat actual amb tots els possibles estats de checkmate
-
-        """
-        # La variable min ens servirà per anar gaurdant la distancia més petita trobada en cada moment.
-        # L'inicialitzem a 17 ja que al tauler, al ser 8x8, mai tindrem una distància Manhatan superior a 16
-        min = 17
-
-        # Si el current state es part de les possibles posicions de check mate, retornem distancia 0
-        if self.isCheckMate(currentState):
-            return 0
-
-        # Si no, trobem la distancia mínima
-        for targetState in self.checkMatestates:
-            for pieceT in targetState:
-                for piece in currentState:
-                    x = abs(piece[0] - pieceT[0]) + abs(piece[1] - pieceT[1]) # Distancia Manhatan
-                    if x < min:
-                        min = x
-
-        # Retornem la distancia minima trobada
-        return min
-
-
-    """
-        Funcio de búsqueda informada *A
-
-        Parametres d'entrada:
-            . currentState =  node inicial
-            . depth=  profunditat inicial
-    """
-    def searchA(self, currentState, depth):
-
-        #Inicialitzem la cua prioritaria on anirem guardant els estats
-        queue = PriorityQueue()
-
-        #Abans de començar l'iteració ens assegurem que la llista de visitats està buida
-        self.listVisitedStates = []
-
-        # Cada estat serà una tupla, on:
-        #   - El primer valor serà el valor de la funció d'evaluació f(n) = h(n)+g(n)
-        #   - El segón el cost d'arribar a l'objectiu des d'aquell estat, en aquest cas, equivaldrà al depth o número de moviments fets per arribar allà
-        #   - El tercer serà la llista amb la posició de les peces blanques al tauler
-        currentState = (self.fun_heuristica(currentState),0,currentState)
-
-        # Creem un diccionari on anrirem guardant els estats i els seus estats previs, per tal de reconstruir el camí al checkmate
-        previous = dict()
-        previous[(tuple(currentState[2][0]), tuple(currentState[2][1]))] = None
-
-        # Creem un diccionari on anirem guardant els estats amb el cost més baix per a arribar a aquests, l'anirem actualizant a mesura que trobem camins més curts
-        costs = dict()
-        costs[(tuple(currentState[2][0]), tuple(currentState[2][1]))] = currentState[0]
-
-        #Mentres no trobem estat de checkmate anirem iterant per l'arbre
-        while not self.checkMate:
-
-            #Comprovem que l'estat actual no hagi estat visitat previament
-            if  self.isVisited(currentState[2]):
-                #Si hi ha més estat per a visitar, passem al següent de la cua amb prioritat
-                if queue:
-                    currentState = queue.get()
-                #Si no hi ha més nodes per visitar i cap ha sigut checkmate, podem dir que arribar a checkmate no es possible amb les peces actuals del tauler
-                else:
-                    print("There's no possibility of checkmate.1")
-                    break
-
-            #Si no ha estat visitat
-            else:
-                #Obtenim el depth i les posicions de les peces blanques
-                cost = currentState[0]
-                depth = currentState[1]
-                data = currentState[2]
-
-                #Afegim l'estat actual a les posicions ja visitades
-                self.listVisitedStates.append(data)
-
-                #Comprovem si correspon a un estat de checkmate
-                if self.isCheckMate(data):
-                    #Si ho és, podem dir que hem trobat un checkmate i sortir del bucle
-                    # Guardem la solució trobada en la variable pathToTarget
-                    self.pathToTarget = self.recunstructPath(data, previous)
-                    self.checkMate = True
-
-
-                else:
-                    # Obtenim la llista de nous estats possibles
-                    for state in reversed(self.getListNextStatesW(data)):
-                        if state not in self.listVisitedStates:
-                            if state[0][:2] != state[1][:2]:
-                                # Afegim a la cua aquells que no hagin estat visitats previament i siguin vàlids
-                                #Primer calculem el valor de la funció d'evaluació
-                                f = self.fun_heuristica(state) + depth + 1
-                                queue.put((f, depth+1, state))
-                                # Guradem el node amb el seu cost
-                                costs[(tuple(state[0]), tuple(state[1]))] = f
-                                # Guardem els estats al diccionari amb el seu estat previ
-                                if not (tuple(state[0]), tuple(state[1])) in previous:
-                                    previous[(tuple(state[0]), tuple(state[1]))] = (tuple(data[0]), tuple(data[1]))
-                        # Si el node ja ha estat visitat
+                    # If they're on the same row
+                    if eRook[0] == myKing[0]:
+                        #If the rook is on the right
+                        if eRook[1] > myKing[1]:
+                            pos = [myKing[0], myKing[1]+1]
+                        # Else, it's on the left
                         else:
-                            # Calculem el valor de la funció d'evaluació actual
-                            f = self.fun_heuristica(state) + depth + 1
-                            # Si aquesta es menor que el cost de l'anterior que el vam visitar
-                            if f < costs[(tuple(state[0]), tuple(state[1]))] :
-                                # Actualitzem el seu cost
-                                costs[(tuple(state[0]), tuple(state[1]))] = f
-                                # Actualitzem també el seu node previ
-                                previous[(tuple(state[0]), tuple(state[1]))] = (tuple(data[0]), tuple(data[1]))
+                            pos = [myKing[0], myKing[1]-1]
+                    # If they are on the same column
+                    elif eRook[1] ==  myKing[1]:
+                        # If the rook is over our king
+                        if eRook[0] < myKing[0]:
+                            pos = [myKing[0]-1, myKing[1]]
+                        # Else, the tower is over
+                        else:
+                            pos = [myKing[0]+1, myKing[1]]
 
-                    # Si encara podem visitar més estats, agafem el primer de la cua de prioritat
-                    if queue:
-                        currentState = queue.get()
+                    # Once we have the position, we check if our tower can avoid the checkmate
+                    for position in myRook:
+                        if position == pos or position == [eRook[0],eRook[1]]:
+                            return False
 
-                    # Si no hi ha més estats a visitar acabem la recerca i considerem que no hi ha possibilitat de checkmate
-                    else:
-                        print("There is no possibility of check mate.2")
-                        break
+                    return True
 
-        # Mostrem per pantalla els resultats obtinguts
-        if self.checkMate:
-            print('Check mate!')
-            print("Depth: ", len(self.pathToTarget))
-            print("Path: ", self.pathToTarget)
+                else:
+                    return True
+            # If our king still has possible movements, there is no checkmate
+            else:
+                return False
+
+        # White's turn
+        else:
+            # We get our possible next moves
+            myMoves = self.getListNextStatesB(mystate);
+
+            # We get our king's possible moves
+            myKing = []
+            for move in myMoves:
+                for position in move:
+                    if position[2] == 12 and [position[0], position[1]] not in myKing:
+                        myKing.append(position[:2])
+
+            # We check the enemies possible next moves, if any of them match with our king's possible moves
+            # We will delate it from them, since it won't be no longer a possibility
+            enemyMoves = self.getListNextStatesW(mystate);
+            for move in enemyMoves:
+                for position in move:
+                    if position[:2] in myKing:
+                        myKing.remove([position[0], position[1]])
+
+            # If our king doesn't have any possible move, then, we are in a checkmate situation
+            if len(myKing) == 0:
+                # We need to consider if the situation is possible to be avoided by moving another of our pieces
+                # First we check if we have our rook on the board
+                if len(myMoves[0]) > 1:
+                    # We get its possible moves
+                    myRook = []
+                    for move in myMoves:
+                        for position in move:
+                            if position[2] == 8 and [position[0], position[1]] not in myRook:
+                                myRook.append(position[:2])
+                    # We check if any possible move of our rook matches one of the enemies pieces position or
+                    # can block the enemies tower
+
+                    # First we get the position on the board where our rook will be blocking the other one properly
+                    # This has to be the position next to our king, on the side where there's the enemies rook threat
+
+                    # We get the position of our king and the enemies rook
+                    myKing = []
+                    eRook = []
+                    pos = []
+                    for piece in mystate.currentStateB:
+                        if piece[2] == 12:
+                            myKing = [piece[0],piece[1],piece[2]]
+                    for piece in mystate.currentStateW:
+                        if piece[2] == 2:
+                            eRook = [piece[0],piece[1],piece[2]]
+                    # If they're on the same row
+                    if eRook[0] == myKing[0]:
+                        # If the rook is on the right
+                        if eRook[1] > myKing[1]:
+                            pos = [myKing[0], myKing[1] + 1]
+                        # Else, it's on the left
+                        else:
+                            pos = [myKing[0], myKing[1] - 1]
+                    # If they are on the same column
+                    elif eRook[1] == myKing[1]:
+                        # If the rook is over our king
+                        if eRook[0] < myKing[0]:
+                            pos = [myKing[0] - 1, myKing[1]]
+                        # Else, the tower is over
+                        else:
+                            pos = [myKing[0] + 1, myKing[1]]
+
+                    # Once we have the position, we check if our tower can avoid the checkmate
+                    for position in myRook:
+                        if position == pos or position == [eRook[0], eRook[1]]:
+                            return False
+
+                    return True
+
+                else:
+                    return True
+            # If our king still has possible movements, there is no checkmate
+            else:
+                return False
+
+    # This function starts the game.
+    # It's parameters lets us choose which alorithm we want to use on the white and on the black pieces.
+    # It also let's us specify the maximum depth of both
+    def Play(self, mystate, func1, func2, maxdepth1, maxdepth2):
+        # This variable will be a turns counter
+        i = 0
+
+        # We let the game run until having a checkmate
+        while not self.checkMate:
+            i += 1
+            print ('___________________________ ')
+            print("Turn ", i)
+            print(self.turn)
+            print ('___________________________ ')
+
+            print("Start")
+            mystate.print_board()
+            print('White pieces: ',mystate.currentStateW)
+            print('Black pieces: ',mystate.currentStateB)
+
+            # White's turn
+            if self.turn:
+                if func1 == "Minimax":
+                    mystate = self.Minimax(mystate,maxdepth1)
+                elif func1 == "Poda":
+                    mystate = self.Poda(mystate,maxdepth1)
+                elif func1 == "Expectimax":
+                    self.Expectimax(mystate,maxdepth1,0)
+                    mystate = self.chess.boardSim
+
+            # Black's turn
+            else:
+                if func2 == "Minimax":
+                    mystate = self.Minimax(mystate,maxdepth2)
+                elif func2 == "Poda":
+                    mystate = self.Poda(mystate,maxdepth2)
+                elif func2 == "Expectimax":
+                    self.Expectimax(mystate, maxdepth2, 0)
+                    mystate = self.chess.boardSim
+
+            print("End")
+            mystate.print_board()
+            print('White pieces: ',mystate.currentStateW)
+            print('Black pieces: ',mystate.currentStateB)
+
+            # We check if  this state corresponds to checkmate, if so  the game has ended
+            self.checkMate = self.isCheckMate(mystate, self.turn)
+            # We change turns
+            self.turn = not self.turn
+
+        # We check who has won and anaunce it
+        if self.turn == False:
+            print("White wins!")
+        else:
+            print("Black wins!")
+
+
+    # This auxiliar function will return, giving an specific state and whose turn is it, the value of it.
+    # We will use it on the algorithms in order to choose the best moves
+    def Utility(self, state):
+        # First we check if we have eaten the enemie's king in this state
+        if self.turn:
+            e = state.currentStateB
+        else:
+            e = state.currentStateW
+
+        eKing = False
+        king = []
+
+        for piece in e:
+            if piece[2] == 12 or piece[2] == 6:
+                eKing = True
+                king = [piece[0],piece[1],piece[2]]
+        # If we have, we will return a high value. Since this means we have won the game
+        if not eKing:
+            return 30
+        # We will return the same high value in case we have done checkmate to the enemie, since it also means we have won
+        elif self.isCheckMate(state, self.turn):
+            return 30
+        # On the other hand, if the satate corresponds to a checkmate by the enemie to us, we return a very low value, since it means we've lost
+        elif self.isCheckMate(state, not self.turn):
+            return -46
+        # Otherwise, we will return the minimum Manhatan distance from our pieces to the enemies king.
+        # This way we will give more value to the movements that make us getting closer to winning
+        else:
+            min = 20
+
+            if self.turn:
+                mypieces = state.currentStateW
+            else:
+                mypieces = state.currentStateB
+
+            for piece in mypieces:
+                    x = abs(piece[0] - king[0]) + abs(piece[1] - king[1]) # Manhatan distance
+                    if x<min:
+                        min = x
+            return -min
+
+    """ MINIMAX FUNCTIONS """
+
+    def Minimax(self, mystate, maxdepth):
+        # We get the best next state
+        self.maxValue(mystate, maxdepth, 0)
+        # And return it
+        return self.chess.boardSim
+
+    def maxValue(self, state, maxdepth, depth):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0],s[0][1]] == [s[1][0],s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum depth or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        # From each next possible state, we create its corresponding board, so we can check which one is going to be the best
+        # We will save the boards on the variable successors
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('-inf')
+
+        for s in successors:
+            # We check which state has the best value
+            aux = max(v, self.minValue(s, maxdepth, depth + 1))
+            # In case of beeing in depth 0, the best future state is going to be our next state of the board.
+            # So, we update it
+            if aux != v:
+                v = aux
+                if depth == 0:
+                    self.chess.boardSim = s
+
+        return v
+
+    def minValue(self, state, maxdepth, depth):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        # From each next possible state, we create its corresponding board, so we can check which one is going to be the best
+        # We will save the boards on the variable successors
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('inf')
+
+        for s in successors:
+            v = min(v, self.maxValue(s, maxdepth, depth + 1))
+
+        return v
+
+    """ FUNCTIONS ALPHA-BETA SEARCH """
+    def Poda(self, mystate, maxdepth):
+        self.maxValuePoda(mystate, maxdepth, 0, float('-inf'), float('inf'))
+        return self.chess.boardSim
+
+    def maxValuePoda(self, state, maxdepth, depth, alpha, beta):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0],s[0][1]] == [s[1][0],s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('-inf')
+
+        for s in successors:
+            aux = max(v, self.minValuePoda(s, maxdepth, depth + 1,alpha,beta))
+            if aux >= beta:
+                v = aux
+                return  v
+
+            if aux != v:
+                if depth == 0:
+                    self.chess.boardSim = s
+            v = aux
+            alpha = max(alpha,v)
+
+        return v
+
+    def minValuePoda(self, state, maxdepth, depth, alpha, beta):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('inf')
+
+        for s in successors:
+            v = min(v, self.maxValuePoda(s, maxdepth, depth + 1, alpha, beta))
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+
+        return v
+
+    """ FUNCTIONS EXPECTIMAX """
+    # Expectimax is an algorithm used on games were the result of some actions is unknowm. In this kind of situations, expectimax
+    # uses probabilites, enough to choose the probable best action.
+    # It is not the case of chess, though. In chess no movements have uncertain results. There for, using expectimax doesn't have
+    # much sense.
+    # So, since there are actually no uncertain states, we have decided to make each state after a move unknown. As a result, each
+    # action will be chosen by probabilities.
+
+    def Expectimax(self, state, maxdepth,depth):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # In order to define the utility of a branch with probabilities, first we will save in a list all the values
+        # from its successor states. We will normalize them, so each one has the same weight. After this, we will
+        # multiply it by its percentage. The percentages will be equal.
+        # We will sum all the values, resulting into the value of that branch.
+        values = []
+        result = float('-inf')
+        sum = 0
+
+        for s in successors:
+            # We get the value of each successor and save it
+            v = self.Expectimax(s,maxdepth, depth+1)
+            values.append(v)
+            sum+= v
+
+            if depth == 0:
+                aux = max(result,v)
+                if aux != result:
+                    result = aux
+                    self.chess.boardSim = s
+
+
+        # Once we have all the values, we normalize them
+        for value in values:
+            value = value/sum
+
+        # We get the percentage that will multiply each value
+        percentage = 1 / len(values)
+
+        # We sum the multiplications between values and percentatges and get the final value of the branch
+        sum = 0
+        for value in values:
+            sum += value*percentage
+
+        return sum
+
 
 def translate(s):
     """
@@ -569,104 +745,67 @@ if __name__ == "__main__":
 
     # intiialize board
     TA = np.zeros((8, 8))
+    # white pieces
+    # TA[0][0] = 2
+    # TA[2][4] = 6
+    # # black pieces
+    # TA[0][4] = 12
+
+    # white pieces
     TA[7][0] = 2
     TA[7][4] = 6
+    # black pieces
+    TA[0][7] = 8
     TA[0][4] = 12
 
     # initialise board
     print("stating AI chess... ")
     aichess = Aichess(TA, True)
-    currentState = aichess.chess.board.currentStateW.copy()
+    print(aichess.chess.board.currentStateB)
+    currentState = aichess.chess.board
 
     print("printing board")
     aichess.chess.boardSim.print_board()
-    
+
+    print('*****************************')
+    print(type(aichess.chess.boardSim))
+    aichess.Play(currentState,"Expectimax","Expectimax",3,3)
+    print('****************************')
+
+
     # get list of next states for current state
     print("current State", currentState)
 
     # it uses board to get them... careful
-    aichess.getListNextStatesW(currentState)
-    print("list next states ", aichess.pathToTarget)
+
+    #   aichess.getListNextStatesW([[7,4,2],[7,4,6]])
+    print("list next states ", aichess.listNextStates)
 
     # starting from current state find the end state (check mate) - recursive function
+    # aichess.chess.boardSim.listVisitedStates = []
     # find the shortest path, initial depth 0
-    aichess.checkMate = False
-    print("DFS Search")
     depth = 0
-    aichess.DepthFirstSearch(currentState, depth)
-    #Imprimim per pantalla el tauler resultant
-    TA = np.zeros((8, 8))
-    TA[0][4] = 12
-    result = aichess.pathToTarget[-1]
-    if result[0][2] == 2:
-        TA[result[0][0]][result[0][1]] = 2
-        TA[result[1][0]][result[1][1]] = 6
-    else:
-        TA[result[0][0]][result[0][1]] = 6
-        TA[result[1][0]][result[1][1]] = 2
-    aichess2 = Aichess(TA, True)
-    aichess2.chess.boardSim.print_board()
-    print("DFS End")
+    #aichess.BreadthFirstSearch(currentState)
+    #aichess.DepthFirstSearch(currentState, depth)
 
-    # Per tal de trobar check mate amb BFS, tornem a posar valor False a la seva variable
-    aichess.checkMate = False
+    # MovesToMake = ['1e','2e','2e','3e','3e','4d','4d','3c']
 
-    # starting from current state find the end state (check mate) - recursive function
-    # find the shortest path, initial depth 0
-    print("BFS Search")
-    depth = 0
-    aichess.BreadthFirstSearch(currentState, depth)
-    print(aichess.listVisitedStates[-1])
-    # Imprimim per pantalla el tauler resultant
-    TA = np.zeros((8, 8))
-    TA[0][4] = 12
-    result = aichess.pathToTarget[-1]
-    if result[0][2] == 2:
-        TA[result[0][0]][result[0][1]] = 2
-        TA[result[1][0]][result[1][1]] = 6
-    else:
-        TA[result[0][0]][result[0][1]] = 6
-        TA[result[1][0]][result[1][1]] = 2
-    aichess2 = Aichess(TA, True)
-    aichess2.chess.boardSim.print_board()
-    print("BFS End")
+    # for k in range(int(len(MovesToMake)/2)):
 
-    aichess.checkMate = False
+    #     print("k: ",k)
 
-    print("*A Search")
-    depth = 0
-    aichess.searchA(currentState,depth)
-    print(aichess.listVisitedStates[-1])
-    # Imprimim per pantalla el tauler resultant
-    TA = np.zeros((8, 8))
-    TA[0][4] = 12
-    result = aichess.pathToTarget[-1]
-    if result[0][2] == 2:
-        TA[result[0][0]][result[0][1]] = 2
-        TA[result[1][0]][result[1][1]] = 6
-    else:
-        TA[result[0][0]][result[0][1]] = 6
-        TA[result[1][0]][result[1][1]] = 2
-    aichess2 = Aichess(TA, True)
-    aichess2.chess.boardSim.print_board()
-    print("*A End")
+    #     print("start: ",MovesToMake[2*k])
+    #     print("to: ",MovesToMake[2*k+1])
 
+    #     start = translate(MovesToMake[2*k])
+    #     to = translate(MovesToMake[2*k+1])
 
-    # example move piece from start to end state
-    MovesToMake = ['1e', '2e']
-    print("start: ", MovesToMake[0])
-    print("to: ", MovesToMake[1])
+    #     print("start: ",start)
+    #     print("to: ",to)
 
-    start = translate(MovesToMake[0])
-    to = translate(MovesToMake[1])
-
-    print("start: ", start)
-    print("to: ", to)
-
-    aichess.chess.moveSim(start, to)
+    #     aichess.chess.moveSim(start, to)
 
     # aichess.chess.boardSim.print_board()
     print("#Move sequence...  ", aichess.pathToTarget)
     print("#Visited sequence...  ", aichess.listVisitedStates)
-
     print("#Current State...  ", aichess.chess.board.currentStateW)
