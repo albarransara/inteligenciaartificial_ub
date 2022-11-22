@@ -117,6 +117,7 @@ class Aichess():
             return False
 
     def isCheckMate(self, mystate, turn):
+
         # Black's turn
         if  not turn:
             # We get our possible next moves
@@ -194,6 +195,7 @@ class Aichess():
             # If our king still has possible movements, there is no checkmate
             else:
                 return False
+
         # White's turn
         else:
             # We get our possible next moves
@@ -271,72 +273,236 @@ class Aichess():
             else:
                 return False
 
+    # This function starts the game.
+    # It's parameters lets us choose which alorithm we want to use on the white and on the black pieces.
+    # It also let's us specify the maximum depth of both
     def Play(self, mystate, func1, func2, maxdepth1, maxdepth2):
+        # This variable will be a turns counter
         i = 0
+
+        # We let the game run until having a checkmate
         while not self.checkMate:
             i += 1
             print ('___________________________ ')
-            print("TURN ", i)
+            print("Turn ", i)
             print(self.turn)
             print ('___________________________ ')
-            print("START")
+
+            print("Start")
             mystate.print_board()
-            print(mystate.currentStateW)
-            print(mystate.currentStateB)
+            print('White pieces: ',mystate.currentStateW)
+            print('Black pieces: ',mystate.currentStateB)
 
             # White's turn
             if self.turn:
                 if func1 == "Minimax":
                     mystate = self.Minimax(mystate,maxdepth1)
+                elif func1 == "Poda":
+                    mystate = self.Poda(mystate,maxdepth1)
             # Black's turn
             else:
                 if func2 == "Minimax":
                     mystate = self.Minimax(mystate,maxdepth2)
+                elif func2 == "Poda":
+                    mystate = self.Poda(mystate,maxdepth2)
 
-            print('quack')
+            print("End")
+            mystate.print_board()
+            print('White pieces: ',mystate.currentStateW)
+            print('Black pieces: ',mystate.currentStateB)
 
-            self.checkMate = self.isCheckMate(mystate,self.turn)
+            # We check if  this state corresponds to checkmate, if so  the game has ended
+            self.checkMate = self.isCheckMate(mystate, self.turn)
+            # We change turns
             self.turn = not self.turn
 
-            print("END")
-            mystate.print_board()
-            print(mystate.currentStateW)
-            print(mystate.currentStateB)
-
+        # We check who has won and anaunce it
         if self.turn == False:
             print("White wins!")
         else:
             print("Black wins!")
 
-    def Minimax(self, mystate, maxdepth):
-        mystate.print_board()
-        resultState = board.Board([], True)
-        self.maxValue(mystate, maxdepth, 0, resultState)
-        return self.chess.boardSim
 
+    # This auxiliar function will return, giving an specific state and whose turn is it, the value of it.
+    # We will use it on the algorithms in order to choose the best moves
     def Utility(self, state):
+        # First we check if we have eaten the enemie's king in this state
         if self.turn:
             e = state.currentStateB
         else:
             e = state.currentStateW
 
         eKing = False
+        king = []
 
         for piece in e:
             if piece[2] == 12 or piece[2] == 6:
                 eKing = True
-
+                king = [piece[0],piece[1],piece[2]]
+        # If we have, we will return a high value. Since this means we have won the game
         if not eKing:
             return 30
+        # We will return the same high value in case we have done checkmate to the enemie, since it also means we have won
         elif self.isCheckMate(state, self.turn):
-            return 20
+            return 30
+        # On the other hand, if the satate corresponds to a checkmate by the enemie to us, we return a very low value, since it means we've lost
         elif self.isCheckMate(state, not self.turn):
-            return 0
+            return -46
+        # Otherwise, we will return the minimum Manhatan distance from our pieces to the enemies king.
+        # This way we will give more value to the movements that make us getting closer to winning
         else:
-            return 10
+            min = 20
 
+            if self.turn:
+                mypieces = state.currentStateW
+            else:
+                mypieces = state.currentStateB
 
-    def maxValue(self, state, maxdepth, depth, resultState):
+            for piece in mypieces:
+                    x = abs(piece[0] - king[0]) + abs(piece[1] - king[1]) # Manhatan distance
+                    if x<min:
+                        min = x
+            return -min
+
+    """ MINIMAX FUNCTIONS """
+
+    def Minimax(self, mystate, maxdepth):
+        # We get the best next state
+        self.maxValue(mystate, maxdepth, 0)
+        # And return it
+        return self.chess.boardSim
+
+    def maxValue(self, state, maxdepth, depth):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0],s[0][1]] == [s[1][0],s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum depth or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        # From each next possible state, we create its corresponding board, so we can check which one is going to be the best
+        # We will save the boards on the variable successors
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('-inf')
+
+        for s in successors:
+            # We check which state has the best value
+            aux = max(v, self.minValue(s, maxdepth, depth + 1))
+            # In case of beeing in depth 0, the best future state is going to be our next state of the board.
+            # So, we update it
+            if aux != v:
+                v = aux
+                if depth == 0:
+                    self.chess.boardSim = s
+
+        return v
+
+    def minValue(self, state, maxdepth, depth):
+        # We get the successor states
+        nextStates = []
+
+        # In white's turn
+        if self.turn:
+            nextStates = self.getListNextStatesW(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateW, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+        # In black's turn
+        else:
+            nextStates = self.getListNextStatesB(state)
+            for s in nextStates:
+                # We don't consider the states were no piece has been moved
+                if self.isSameState(state.currentStateB, s):
+                    nextStates.remove(s)
+                # We don't consider states were both pieces are situated in the same position
+                if len(s) > 1:
+                    if [s[0][0], s[0][1]] == [s[1][0], s[1][1]]:
+                        nextStates.remove(s)
+
+        # Terminal state, if we have arrived to the maximum or if our current state doesn't have successor states
+        if depth >= maxdepth or len(nextStates) == 0:
+            return self.Utility(state)
+
+        # From each next possible state, we create its corresponding board, so we can check which one is going to be the best
+        # We will save the boards on the variable successors
+        successors = []
+
+        for s in nextStates:
+            TA = np.zeros((8, 8))
+
+            if self.turn:
+                for piece in state.currentStateB:
+                    TA[piece[0], piece[1]] = piece[2]
+            else:
+                for piece in state.currentStateW:
+                    TA[piece[0], piece[1]] = piece[2]
+
+            for piece in s:
+                TA[piece[0]][piece[1]] = piece[2]
+
+            boardTA = board.Board(TA, False)
+            successors.append(boardTA)
+
+        # We initialize the variable that will represent the utility of the best successor state
+        v = float('inf')
+
+        for s in successors:
+            v = min(v, self.maxValue(s, maxdepth, depth + 1))
+
+        return v
+
+    """ FUNCTIONS ALPHA-BETA SEARCH """
+    def Poda(self, mystate, maxdepth):
+        self.maxValuePoda(mystate, maxdepth, 0, float('-inf'), float('inf'))
+        return self.chess.boardSim
+
+    def maxValuePoda(self, state, maxdepth, depth, alpha, beta):
         # We get the successor states
         nextStates = []
 
@@ -387,15 +553,20 @@ class Aichess():
         v = float('-inf')
 
         for s in successors:
-            aux = max(v, self.minValue(s, maxdepth, depth + 1, resultState))
-            if aux != v:
+            aux = max(v, self.minValuePoda(s, maxdepth, depth + 1,alpha,beta))
+            if aux >= beta:
                 v = aux
+                return  v
+
+            if aux != v:
                 if depth == 0:
                     self.chess.boardSim = s
+            v = aux
+            alpha = max(alpha,v)
 
         return v
 
-    def minValue(self, state, maxdepth, depth, resultState):
+    def minValuePoda(self, state, maxdepth, depth, alpha, beta):
         # We get the successor states
         nextStates = []
 
@@ -444,9 +615,11 @@ class Aichess():
         v = float('inf')
 
         for s in successors:
-            aux = min(v, self.maxValue(s, maxdepth, depth + 1, resultState))
-            if aux != v:
-                v = aux
+            v = min(v, self.maxValuePoda(s, maxdepth, depth + 1, alpha, beta))
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+
         return v
 
 
@@ -500,17 +673,8 @@ if __name__ == "__main__":
     aichess.chess.boardSim.print_board()
 
     print('*****************************')
-    print("APARTAT A")
     print(type(aichess.chess.boardSim))
     aichess.Play(currentState,"Minimax","Minimax",4,4)
-    print(aichess.chess.boardSim.currentStateB)
-    aichess.chess.moveSim([7,4],[6,4],True, True)
-    print(aichess.chess.boardSim.currentStateW)
-    print(aichess.chess.boardSim.currentStateB)
-    aichess.chess.moveSim([6, 4], [5, 4], True, True)
-    print(aichess.isCheckMate(aichess.chess.boardSim))
-    print(aichess.chess.boardSim.currentStateW)
-    print(aichess.chess.boardSim.currentStateB)
     print('****************************')
 
 
