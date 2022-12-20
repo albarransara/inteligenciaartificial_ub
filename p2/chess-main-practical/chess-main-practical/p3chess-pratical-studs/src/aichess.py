@@ -47,16 +47,16 @@ class Aichess():
 
         self.checkMatestates = ([[0, 0, 2], [2, 4, 6]], [[0, 1, 2], [2, 4, 6]], [[0, 2, 2], [2, 4, 6]], [[0, 6, 2], [2, 4, 6]], [[0, 7, 2], [2, 4, 6]])
 
-        # In this table we will keep updating the Q value of each position and value. One will be for the white pieces and the other for the blacks
-        # It will have the size of all the possible combinations
-        self.tableQW = np.zeros((10000,10000,2))
-        self.tableQB = []
-        # Dictionary where will save all the states we visit and its associated index on Q table
-        self.dictornaryW = {}
+        # This 2 dictionaries will contain the Q values for each state and its possible actions. One will be for white pieces and the other for blacks
+        self.QtableW = {}
+        self.QtableB = {}
+        # In this 2 diccionaries we will get the count of the frequency of each state-action relation
+        self.freq_W = {}
+        self.freq_B = {}
         # This variable gives us the learing rate
         self.alpha = 0.5
         # This variable will give us the discount factor
-        self.gamma = 1
+        self.gamma = 0.7
         # This varaible will help us determinaiting if we do exploration or exploitation, we are using the epsilon greedy technique
         self.epsilon = 0.8
 
@@ -98,10 +98,19 @@ class Aichess():
 
     # Function that will return us the reward of a given state, thought for the first starting case
     def getReward1(self, mystate):
+        min = 17
+
+        for targetState in self.checkMatestates:
+            for pieceT in targetState:
+                for piece in mystate:
+                    x = abs(piece[0] - pieceT[0]) + abs(piece[1] - pieceT[1]) # Distancia Manhatan
+                    if x < min:
+                        min = x
+
         if self.isCheckMate1(mystate):
-            return 100
+                return 1000
         else:
-            return 1
+            return -1 * min # Moves that get us closer to check mate have a better reward
 
     # Auxiliar function that will decide if we do exploitation or exploration
     def getGreedy(self):
@@ -114,187 +123,132 @@ class Aichess():
         else:
             return False;
 
-    # Auxiliar function that returns you the future state with maximum Q
-    def getMaximumFuture(self, futureStates, currentState, turn):
 
-        maximum = float('-inf')
-        future = None
-        if currentState in self.dictornaryW:
-            i_current = self.dictornaryW[currentState]
+    # Auxiliar function to initialize a state in the Q table and frequency table
+    def initializeState(self, state, tuple):
+
+        # We create a tuple version of the state to make it easier to operate with
+        if not tuple:
+            tupledState = self.stateToTuple(state)
         else:
-            i_current = self.dictornaryW[(currentState[1], currentState[0])]
+            tupledState = state
+            state = []
+            for element in tupledState:
+                state.append(list(element))
 
-        # If it's whites turn
+        self.QtableW[tupledState] = {}
+        self.freq_W[tupledState] = {}
+        for action in self.getListNextStatesW(state):
+            # We make sure that staying in the same state its self it's not an action, since we are forced to move one piece
+            if action != state:
+                tupledAction = self.stateToTuple(action)
+                self.QtableW[tupledState][tupledAction] = 0
+                self.freq_W[tupledState][tupledAction] = 0
+
+
+    # Auxiliar function that returns you the action with a maximum Q value
+    def getMaximumFuture(self, currentState, turn):
+        # If white's turn
         if turn:
-            print('caracola')
-            print(futureStates)
-            for state in futureStates:
-                # We create a tuple version of the state to make it easier to operate with
-                tupledState = self.stateToTuple(state)
+            # If we haven't seen this state yet, we add it to the table and initialize it
+            if currentState not in self.QtableW:
+                self.initializeState(currentState,True)
 
-                # If we haven't seen this state yet, we add it to the table
-                if tupledState not in self.dictornaryW:
-                    if(tupledState[1],tupledState[0]) not in self.dictornaryW:
-                        i = len(self.dictornaryW)
-                        self.dictornaryW[tupledState] = i
+            # We get the best possible action, this beeing the one with the biggest Q value
+            maximum = max(self.QtableW[currentState].values())
 
-                if tupledState in self.dictornaryW:
-                    i = self.dictornaryW[tupledState]
-                else:
-                    i  = self.dictornaryW[(tupledState[1],tupledState[0])]
+            # If the maximum is 0, this means no actions have been previously explored, there for we will choose a random one
+            if maximum == 0:
+                pos = np.random.choice(range(0, len(self.QtableW[currentState])))
+            # Else, we get the biggest one
+            else:
+                pos = list(self.QtableW[currentState].values()).index(maximum)
 
-                # We get its main Q value
-                if self.tableQW[i_current][i][0] > 0:
-                    # We get the value of this state, considering how many times we've been on it
-                    value = self.tableQW[i_current][i][1] / self.tableQW[i_current][i][0]
-                else:
-                    value = self.tableQW[i_current][i][1]
+            action = list(self.QtableW[currentState].keys())[pos]
+        return action
 
-                if value > maximum:
-                    maximum = value
-                    future = state
-
-        # If the maximum value is 0, this means none of the possible future actions have been tried before
-        # Therefor, we don't have information of any. Since we don't have any preference, we will choose a random one
-        if maximum == 0:
-            i_future = np.random.choice(range(0,len(futureStates)))
-            future = futureStates[i_future]
-
-        return future
 
     # This function returns the path to solution, ussing the Q table
-    def constructPath(self, currentState):
+    def constructPath(self, currentState, turn):
+        print("'hello")
         state = currentState
         path = [state]
 
-        while not self.isCheckMate1(state):
-            max = float('-inf')
-
-            tupledState = self.stateToTuple(state)
-            stateIndex = self.dictornaryW[tupledState]
-            nextState = None
-            i = 0
-            for action in self.tableQW[stateIndex]:
-                print(':(',state)
-                if action[0] > 0:
-                    value = action[1] / action[0]
-                else:
-                    value = 0
-                if value > max:
-                    max = value
-                    nextState = i
-                i += 1
-            key_list = list(self.dictornaryW.keys())
-            state = key_list[nextState]
-            path.append(state)
+        # If whites turn
+        if turn:
+            while not self.isCheckMate1(state):
+                print(state)
+                next = self.getMaximumFuture(self.stateToTuple(state),True)
+                state = []
+                for element in next:
+                    state.append(list(element))
+                path.append(state)
 
         return path
+
 
     # Q-learing function for question 1
     def Qlearing1(self,currentState):
 
-        loss = 1
-        iterations = 0
-        state = currentState
+        loss = 1 # This variable will allow us to evaluate the accuracy of the predictions
+        iterations = 0 # This variable will count each episode we iterate through. One episode ends when it arrives to a Checkamte state
 
-        while loss > 0 or iterations < 2:
+        # We iterate through a maximum number of episodes. If our predictions are already good, we stop the learing process
+        while loss > 0 and iterations < 1000:
 
             state = currentState
-            iterations += 1
-            print('holaaaaa')
-            print(iterations,loss)
+            iterations += 1 # We increase the number of episodes
 
+            # Each episode will last until we arrive to a check-mate state
             while not self.isCheckMate1(state):
-                print('State in', state)
 
                 # We create a tuple version of the state to make it easier to operate with
                 tupledState = self.stateToTuple(state)
 
-
                 # If we haven't seen this state yet, we add it to the table and initialize it
-                if tupledState not in self.dictornaryW:
-                    if(tupledState[1],tupledState[0]) not in self.dictornaryW:
-                        i = len(self.dictornaryW)
-                        self.dictornaryW[tupledState] = i
+                if tupledState not in self.QtableW:
+                    self.initializeState(state, False)
 
-                if tupledState in self.dictornaryW:
-                    i_current = self.dictornaryW[tupledState]
-                else:
-                    i_current  = self.dictornaryW[(tupledState[1],tupledState[0])]
 
-                # We get the possible futre states,that will represent the possible future actions
-                # from our current state
-                futureStates = self.getListNextStatesW(state)
-                # If the current state is on the possible ones we delate it, since it's not a possibility statying in the same place
-                if state in futureStates or [state[1],state[0]] in futureStates:
-                    futureStates.remove(state)
-
-                # We get the future state that gives us the maximum Q. We first, will get the state (row in the Q table) and then its
-                # maximum action(column in max row)
-                # We get the best possible future state
-                maximum = self.getMaximumFuture(futureStates, tupledState, True)
-                tupledMaximum = self.stateToTuple(maximum)
-                if tupledMaximum in self.dictornaryW:
-                    i_rowMax = self.dictornaryW[tupledMaximum]
-                else:
-                    i_rowMax = self.dictornaryW[(tupledMaximum[1], tupledMaximum[0])]
-                # We get its best action
-                max = float('-inf')
-                i_columnMax = 0
-                i = 0
-                for action in self.tableQW[i_rowMax]:
-                    if action[1]/action[0] >  max:
-                        max = action[1]/action[0]
-                        i_columnMax = i
-                    i += 1
 
                 # We decide if we do exploitation or exploration
                 greedy = self.getGreedy()
 
                 # If exploitation
                 if greedy:
-                    # We do the action that has a maximum Q, considering how many times we've done this action
-                    future = maximum
-                    tupledFuture = self.stateToTuple(future)
+                    # We do the action that has a maximum Q
+                    next = self.getMaximumFuture(tupledState, True)
 
                 # If exploration
                 else:
-                    # We get a random state from the possible future ones;
-                    i_future = np.random.choice(range(0, len(futureStates)))
-                    future = futureStates[i_future]
-                    tupledFuture = self.stateToTuple(future)
+                    # We get a random action from the possible future ones
+                    pos = np.random.choice(range(0, len(self.QtableW[tupledState])))
+                    next = list(self.QtableW[tupledState].keys())[pos]
 
-                    # If we haven't seen this state yet, we add it to the table and initialize it
-                    if tupledFuture not in  self.dictornaryW:
-                        if (tupledState[1], tupledState[0]) not in self.dictornaryW:
-                            i = len(self.dictornaryW)
-                            self.dictornaryW[tupledFuture] = i
+                listNext = []
+                for element in next:
+                    listNext.append(list(element))
 
                 # We get the reward of the current state
-                reward = self.getReward1(future)
-
-                if tupledFuture in self.dictornaryW:
-                    i_future = self.dictornaryW[tupledFuture]
-                else:
-                    i_future = self.dictornaryW[(tupledFuture[1], tupledFuture[0])]
+                reward = self.getReward1(listNext)
+                maximum = self.getMaximumFuture(next, True)
 
                 # We get the mistake of our prediction
-                sample = reward + self.gamma * float(self.tableQW[i_rowMax][i_columnMax][1])
-                loss = abs(sample - float(self.tableQW[i_current][i_future][1]))
+                sample = reward + self.gamma * self.QtableW[next][maximum]
+                loss = sample - self.QtableW[tupledState][next]
 
-                # We update the Q table
-                self.tableQW[i_current][i_future][1] += self.alpha * sample
-                self.tableQW[i_current][i_future][0] += 1
+                # We update the Q table and frequency table
+                self.freq_W[tupledState][next] += 1
+                self.QtableW[tupledState][next] += 0.3 * loss
 
                 # We update the current state
-                state = future.copy()
-                print(':)')
-
-                print('State out', state)
+                state = listNext
+                print(":)", loss)
 
         # Once we have updated our Q table, we reconstruct the path to the checkmate
-        path = self.constructPath(currentState)
+        path = self.constructPath(currentState, True)
         print('Path to Check-mate: ', path)
+        print(' Number of movements: ', len(path)-1)
 
 
 def translate(s):
